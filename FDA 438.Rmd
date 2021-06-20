@@ -1,0 +1,254 @@
+---
+title: "Summary of FDA 483 Observations 2012 - 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+library(readxl)
+library(DT)
+library(pander)
+library(gridExtra)
+library(knitr)
+
+violations <- read_excel("~/Desktop/FDA 438/tidy_483s.xlsx")
+```
+<!-- <details> -->
+<!--   <summary>Click </summary> -->
+  
+```{r, echo=FALSE}
+fda_v <- violations %>% 
+  unite("combined_coding", violation_catagory:violation_area, sep = ", ", remove = FALSE) %>%
+  mutate(year = year(inspection_open))
+
+year_trends <- fda_v %>%
+  group_by(year) %>%
+  count(combined_coding) %>%
+  arrange(year)
+
+year_trends_violations_observed <- fda_v %>%
+  group_by(year) %>%
+  count(year) %>%
+  arrange(year)
+
+year_trends_inspections_perfomed <- fda_v %>%
+  group_by(year) %>%
+  distinct(facility) %>%
+  count(year)
+
+year_trends_spec <- fda_v %>%
+  group_by(year) %>% 
+  count(combined_coding) 
+
+total_violations_type <- fda_v %>%
+  count(combined_coding)
+
+year_trends <- full_join(year_trends_inspections_perfomed, year_trends_violations_observed, by = "year") %>%
+  rename("# Inspections Performed" = n.x, "# Observations" = n.y, "Year" = year) %>%
+  mutate(Year = as.factor(Year)) %>%
+  mutate(`# Inspections Performed` = as.numeric(`# Inspections Performed`)) %>%
+  mutate(`# Observations` = as.numeric(`# Observations`))
+
+fda_v_joined <- fda_v %>%
+  full_join(year_trends_spec, fda_v, by = "combined_coding") %>%
+  full_join(total_violations_type, fda_v, by = "combined_coding") %>%
+  select(-year.x) %>%
+  rename("type.yearly" = n.x, "type.total" = n.y,"year" = year.y) %>%
+  select(year, combined_coding, type.yearly, type.total) %>%
+  rename("violation.type" = combined_coding) %>%
+  group_by(violation.type) %>%
+  distinct(year, .keep_all = TRUE) 
+
+fda_v_joined <- fda_v_joined %>%
+  full_join(year_trends_violations_observed, fda_v, by = "year") %>%
+  rename("yearly.total" = n) %>%
+  mutate(percent.yearly.type = (type.yearly/yearly.total)) %>%
+  mutate(percent.total.type = (type.total/sum(yearly.total))) %>%
+  select(year, violation.type, type.yearly, percent.yearly.type, type.total, percent.total.type)
+
+fda_v <- fda_v %>%
+  select(year, facility, associated_summary, combined_coding) %>%
+  rename("violation.type" = combined_coding, "associated.summary" = associated_summary)
+
+```
+
+## Yearly Trends in Inspections and Observations
+<center>
+```{r, echo = FALSE, fig.width=11,fig.height=6}
+plot1 <- ggplot(year_trends, aes(x = Year, y = `# Inspections Performed`)) +
+  geom_col(fill = "lightskyblue") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank()) +
+  labs(title = "Number of Inspections Performed Yearly")
+
+plot2 <- ggplot(year_trends, aes(x = Year, y = `# Observations`)) +
+  geom_col(fill = "lightskyblue")+
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank()) +
+  labs(title = "Number of Observations Recorded Yearly")
+
+grid.arrange(plot1, plot2, nrow = 2)
+```
+</center>
+
+<details>
+  <summary> Table of Yearly Inspections/Observations </summary>
+  <center>
+``` {r, echo = FALSE, fig.width=11,fig.height=6}
+kable(year_trends)
+```
+</center>
+</details>
+
+## Yearly Summaries {.tabset .tabset-fade .tabset-pills}
+
+### 2012
+
+```{r, echo = FALSE, eval = TRUE}
+yearly.breakdown <- fda_v_joined %>%
+  filter(type.total >= 5)
+
+year.2012 <- yearly.breakdown %>%
+  filter(year == 2012) %>%
+  mutate(percent.yearly.type = paste(round(percent.yearly.type*100, 0), "%", sep = " ")) %>%
+  mutate(percent.total.type = paste(round(percent.total.type*100, 0), "%", sep = " ")) %>%
+  arrange(desc(type.total)) %>%
+  rename("Year" = year, "Observation Type" = violation.type, "# Yearly" = type.yearly, 
+         "% Yearly" = percent.yearly.type, "# Total" = type.total, "% Total" = percent.total.type)
+
+pander(year.2012)
+```
+
+### 2014 
+
+```{r, echo = FALSE, eval = TRUE}
+year.2014 <- yearly.breakdown %>%
+  filter(year == 2014) %>%
+  filter(type.yearly >= 2) %>%
+  mutate(percent.yearly.type = paste(round(percent.yearly.type*100, 0), "%", sep = " ")) %>%
+  mutate(percent.total.type = paste(round(percent.total.type*100, 0), "%", sep = " ")) %>%
+  arrange(desc(type.total)) %>%
+  rename("Year" = year, "Observation Type" = violation.type, "# Yearly" = type.yearly, 
+         "% Yearly" = percent.yearly.type, "# Total" = type.total, "% Total" = percent.total.type)
+
+pander(year.2014)
+```
+
+### 2015
+
+```{r, echo = FALSE, eval = TRUE}
+year.2015 <- yearly.breakdown %>%
+  filter(year == 2015) %>%
+  filter(type.yearly >= 2) %>%
+  mutate(percent.yearly.type = paste(round(percent.yearly.type*100, 0), "%", sep = " ")) %>%
+  mutate(percent.total.type = paste(round(percent.total.type*100, 0), "%", sep = " ")) %>%
+  arrange(desc(type.total)) %>%
+  rename("Year" = year, "Observation Type" = violation.type, "# Yearly" = type.yearly, 
+         "% Yearly" = percent.yearly.type, "# Total" = type.total, "% Total" = percent.total.type)
+
+pander(year.2015)
+```
+
+### 2016
+
+```{r, echo = FALSE, eval = TRUE}
+yearly.breakdown <- fda_v_joined %>%
+  filter(type.total >= 5)
+
+year.2016 <- yearly.breakdown %>%
+  filter(year == 2016) %>%
+  mutate(percent.yearly.type = paste(round(percent.yearly.type*100, 0), "%", sep = " ")) %>%
+  mutate(percent.total.type = paste(round(percent.total.type*100, 0), "%", sep = " ")) %>%
+  arrange(desc(type.total)) %>%
+  rename("Year" = year, "Observation Type" = violation.type, "# Yearly" = type.yearly, 
+         "% Yearly" = percent.yearly.type, "# Total" = type.total, "% Total" = percent.total.type)
+
+pander(year.2016)
+```
+
+### 2017
+
+```{r, echo = FALSE, eval = TRUE}
+year.2017 <- yearly.breakdown %>%
+  filter(year == 2017) %>%
+  filter(type.yearly >= 2) %>%
+  mutate(percent.yearly.type = paste(round(percent.yearly.type*100, 0), "%", sep = " ")) %>%
+  mutate(percent.total.type = paste(round(percent.total.type*100, 0), "%", sep = " ")) %>%
+  arrange(desc(type.total)) %>%
+  rename("Year" = year, "Observation Type" = violation.type, "# Yearly" = type.yearly, 
+         "% Yearly" = percent.yearly.type, "# Total" = type.total, "% Total" = percent.total.type)
+
+pander(year.2017)
+```
+
+### 2018
+
+```{r, echo = FALSE, eval = TRUE}
+year.2018 <- yearly.breakdown %>%
+  filter(year == 2018) %>%
+  filter(type.yearly >= 3) %>%
+  mutate(percent.yearly.type = paste(round(percent.yearly.type*100, 0), "%", sep = " ")) %>%
+  mutate(percent.total.type = paste(round(percent.total.type*100, 0), "%", sep = " ")) %>%
+  arrange(desc(type.total)) %>%
+  rename("Year" = year, "Observation Type" = violation.type, "# Yearly" = type.yearly, 
+         "% Yearly" = percent.yearly.type, "# Total" = type.total, "% Total" = percent.total.type)
+
+pander(year.2018)
+```
+
+### 2019
+
+```{r, echo = FALSE, eval = TRUE}
+year.2019 <- yearly.breakdown %>%
+  filter(year == 2019) %>%
+  filter(type.yearly >= 3) %>%
+  mutate(percent.yearly.type = paste(round(percent.yearly.type*100, 0), "%", sep = " ")) %>%
+  mutate(percent.total.type = paste(round(percent.total.type*100, 0), "%", sep = " ")) %>%
+  arrange(desc(type.total)) %>%
+  rename("Year" = year, "Observation Type" = violation.type, "# Yearly" = type.yearly, 
+         "% Yearly" = percent.yearly.type, "# Total" = type.total, "% Total" = percent.total.type)
+
+pander(year.2019)
+```
+
+### 2020
+
+```{r, echo = FALSE, eval = TRUE}
+year.2020 <- yearly.breakdown %>%
+  filter(year == 2020) %>%
+  filter(type.yearly >= 2) %>%
+  mutate(percent.yearly.type = paste(round(percent.yearly.type*100, 0), "%", sep = " ")) %>%
+  mutate(percent.total.type = paste(round(percent.total.type*100, 0), "%", sep = " ")) %>%
+  arrange(desc(type.total)) %>%
+  rename("Year" = year, "Observation Type" = violation.type, "# Yearly" = type.yearly, 
+         "% Yearly" = percent.yearly.type, "# Total" = type.total, "% Total" = percent.total.type)
+
+pander(year.2020)
+```
+
+### 2021
+
+```{r, echo = FALSE, eval = TRUE}
+year.2021 <- yearly.breakdown %>%
+  filter(year == 2021) %>%
+  mutate(percent.yearly.type = paste(round(percent.yearly.type*100, 0), "%", sep = " ")) %>%
+  mutate(percent.total.type = paste(round(percent.total.type*100, 0), "%", sep = " ")) %>%
+  arrange(desc(type.total)) %>%
+  rename("Year" = year, "Observation Type" = violation.type, "# Yearly" = type.yearly, 
+         "% Yearly" = percent.yearly.type, "# Total" = type.total, "% Total" = percent.total.type)
+
+pander(year.2021)
+```
+
+## Observation Summaries
+
+``` {r, echo = FALSE}
+#datatable(fda_v_joined) %>%
+#  formatPercentage(c('percent.yearly.type', 'percent.total.type'))
+
+datatable(fda_v, filter = 'top', options = list(
+  pageLength = 5, autoWidth = TRUE), colnames = c('Year', 'Facility', 'Observation Summary', 'Observation Type')) 
+```
+
